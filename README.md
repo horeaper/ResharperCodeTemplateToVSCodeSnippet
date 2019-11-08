@@ -2,7 +2,9 @@
 
 Convert Resharper's code template to Visual Studio Code's snippet (Not Visual Studio's Code Snippet!!)
 
-Tested with Resharper 2019.2.3. Requires .NET Framework or Mono to run.
+Tested with Resharper 2019.2.3 and Visual Studio Code 1.40.0
+
+Requires .NET Framework 4.5 or Mono to run.
 
 ## How To Use
 
