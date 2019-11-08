@@ -77,28 +77,34 @@ namespace ResharperCodeTemplateToVSCodeSnippet
 			var placeHolder = new Dictionary<string, int>();
 			foreach (var template in codeTemplates) {
 				placeHolder.Clear();
-				for (var index = 0; index < template.Body.Length; index++) {
-					var line = template.Body[index];
-					int startIndex = line.IndexOf('$');
-					if (startIndex == -1) {
-						continue;
-					}
-					int endIndex = line.IndexOf('$', startIndex + 1);
-					if (endIndex == -1) {
-						continue;
-					}
-
-					string name = line.Substring(startIndex + 1, endIndex - startIndex - 1);
-					if (name == "END") {
-						template.Body[index] = line.Replace($"${name}$", "$0");
-					}
-					else {
-						if (!placeHolder.TryGetValue(name, out var number)) {
-							number = placeHolder.Count + 1;
-							placeHolder.Add(name, number);
+				foreach (var line in template.Body) {
+					int currentIndex = 0;
+					while (true) {
+						int startIndex = line.IndexOf('$', currentIndex);
+						if (startIndex == -1) {
+							break;;
 						}
+						int endIndex = line.IndexOf('$', startIndex + 1);
+						if (endIndex == -1) {
+							break;;
+						}
+						currentIndex = endIndex + 1;
 
-						template.Body[index] = line.Replace($"${name}$", $"${{{number}:{name}}}");
+						string name = line.Substring(startIndex + 1, endIndex - startIndex - 1);
+						if (name != "END") {
+							if (!placeHolder.TryGetValue(name, out var number)) {
+								number = placeHolder.Count + 1;
+								placeHolder.Add(name, number);
+							}
+						}
+					}
+				}
+
+				for (int index = 0; index < template.Body.Length; ++index) {
+					template.Body[index] = template.Body[index].Replace("$END$", "$0");
+
+					foreach (var item in placeHolder) {
+						template.Body[index] = template.Body[index].Replace($"${item.Key}$", $"${{{item.Value}:{item.Key}}}");
 					}
 				}
 			}
