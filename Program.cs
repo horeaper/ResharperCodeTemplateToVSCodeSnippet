@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Xml.Linq;
 
 namespace ResharperCodeTemplateToVSCodeSnippet
@@ -73,12 +74,65 @@ namespace ResharperCodeTemplateToVSCodeSnippet
 			var codeTemplates = content.Values.Where(item => !string.IsNullOrEmpty(item.Shortcut) && item.Body?.Length > 0 && !string.IsNullOrEmpty(item.Body[0])).OrderBy(item => item.Shortcut).ToList();
 
 			//Convert all $XXX$ indicators
+			var placeHolder = new Dictionary<string, int>();
 			foreach (var template in codeTemplates) {
-				
+				placeHolder.Clear();
+				for (var index = 0; index < template.Body.Length; index++) {
+					var line = template.Body[index];
+					int startIndex = line.IndexOf('$');
+					if (startIndex == -1) {
+						continue;
+					}
+					int endIndex = line.IndexOf('$', startIndex + 1);
+					if (endIndex == -1) {
+						continue;
+					}
+
+					string name = line.Substring(startIndex + 1, endIndex - startIndex - 1);
+					if (name == "END") {
+						template.Body[index] = line.Replace($"${name}$", "$0");
+					}
+					else {
+						if (!placeHolder.TryGetValue(name, out var number)) {
+							number = placeHolder.Count + 1;
+							placeHolder.Add(name, number);
+						}
+
+						template.Body[index] = line.Replace($"${name}$", $"${{{number}:{name}}}");
+					}
+				}
 			}
+
+			//Generate
+			var builder = new StringBuilder(4096);
+			builder.Append("{\n");
+			foreach (var template in codeTemplates) {
+				builder.Append($"\t\"{template.Shortcut}\":{{\n");
+				{
+					builder.Append($"\t\t\"prefix\": \"{template.Shortcut}\",\n");
+					if (!string.IsNullOrEmpty(template.Description)) {
+						builder.Append($"\t\t\"description\": \"{template.Description}\",\n");
+					}
+
+					builder.Append("\t\t\"body\": ");
+					if (template.Body.Length == 1) {
+						builder.Append($"\"{template.Body[0]}\"\n");
+					}
+					else {
+						builder.Append("[\n");
+						foreach (var line in template.Body) {
+							builder.Append($"\t\t\t\"{line.Replace("\t", "\\t")}\",\n");
+						}
+						builder.Append("\t\t]\n");
+					}
+				}
+				builder.Append("\t},\n");
+			}
+			builder.Append("}");
 
 			//Output
 			var targetFile = Path.Combine(Path.GetDirectoryName(sourceFile), "csharp.json");
+			File.WriteAllText(targetFile, builder.ToString());
 		}
 	}
 }
